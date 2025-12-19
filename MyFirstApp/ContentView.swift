@@ -40,6 +40,11 @@ struct DailyEntry: Identifiable, Codable, Equatable {
     }
 }
 
+enum HistoryFilter: String, CaseIterable {
+    case active = "Active"
+    case archived = "Archived"
+}
+
 struct ContentView: View {
     @State private var podcastInput = ""
     @State private var podcasts: [String] = []
@@ -50,13 +55,14 @@ struct ContentView: View {
     @State private var showCopiedAlert = false
     @State private var showNewDayAlert = false
     @State private var history: [DailyEntry] = []
-    @State private var showArchived = false
+    @State private var selectedFilter: HistoryFilter = .active
     
     var filteredHistory: [DailyEntry] {
-        if showArchived {
-            return history
-        } else {
+        switch selectedFilter {
+        case .active:
             return history.filter { !$0.isArchived }
+        case .archived:
+            return history.filter { $0.isArchived }
         }
     }
     
@@ -68,20 +74,12 @@ struct ContentView: View {
                     .font(.largeTitle)
                     .padding()
                 
-                HStack {
-                    TextField("What podcast did you listen to?", text: $podcastInput)
-                        .textFieldStyle(.roundedBorder)
-                        .onSubmit {
-                            addPodcast()
-                        }
-                    
-                    Button(action: addPodcast) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.blue)
+                TextField("What podcast did you listen to?", text: $podcastInput)
+                    .textFieldStyle(.roundedBorder)
+                    .padding(.horizontal)
+                    .onSubmit {
+                        addPodcast()
                     }
-                }
-                .padding(.horizontal)
                 
                 List {
                     ForEach(podcasts, id: \.self) { podcast in
@@ -90,6 +88,10 @@ struct ContentView: View {
                     .onDelete(perform: deletePodcast)
                 }
                 .listStyle(.plain)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                hideKeyboard()
             }
             .tabItem {
                 Image(systemName: "headphones")
@@ -102,20 +104,12 @@ struct ContentView: View {
                     .font(.largeTitle)
                     .padding()
                 
-                HStack {
-                    TextField("What are you reading?", text: $bookInput)
-                        .textFieldStyle(.roundedBorder)
-                        .onSubmit {
-                            addBook()
-                        }
-                    
-                    Button(action: addBook) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.blue)
+                TextField("What are you reading?", text: $bookInput)
+                    .textFieldStyle(.roundedBorder)
+                    .padding(.horizontal)
+                    .onSubmit {
+                        addBook()
                     }
-                }
-                .padding(.horizontal)
                 
                 List {
                     ForEach(books, id: \.self) { book in
@@ -124,6 +118,10 @@ struct ContentView: View {
                     .onDelete(perform: deleteBook)
                 }
                 .listStyle(.plain)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                hideKeyboard()
             }
             .tabItem {
                 Image(systemName: "book")
@@ -136,20 +134,12 @@ struct ContentView: View {
                     .font(.largeTitle)
                     .padding()
                 
-                HStack {
-                    TextField("What did you learn today?", text: $learningInput)
-                        .textFieldStyle(.roundedBorder)
-                        .onSubmit {
-                            addLearning()
-                        }
-                    
-                    Button(action: addLearning) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.blue)
+                TextField("What did you learn today?", text: $learningInput)
+                    .textFieldStyle(.roundedBorder)
+                    .padding(.horizontal)
+                    .onSubmit {
+                        addLearning()
                     }
-                }
-                .padding(.horizontal)
                 
                 List {
                     ForEach(learnings, id: \.self) { learning in
@@ -159,6 +149,10 @@ struct ContentView: View {
                 }
                 .listStyle(.plain)
             }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                hideKeyboard()
+            }
             .tabItem {
                 Image(systemName: "sparkle")
                 Text("Learning")
@@ -166,49 +160,42 @@ struct ContentView: View {
             
             // Tab 4: History
             VStack {
-                HStack {
-                    Text("History")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                    
-                    Spacer()
-                    
-                    Toggle("Archived", isOn: $showArchived)
-                        .labelsHidden()
+                Text("History")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .padding(.top)
+                
+                Picker("Filter", selection: $selectedFilter) {
+                    ForEach(HistoryFilter.allCases, id: \.self) { filter in
+                        Text(filter.rawValue).tag(filter)
+                    }
                 }
-                .padding()
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
                 
                 if filteredHistory.isEmpty {
                     VStack(spacing: 20) {
                         Image(systemName: "clock.arrow.circlepath")
                             .font(.system(size: 60))
                             .foregroundColor(.gray)
-                        Text(showArchived ? "No archived entries" : "No history yet")
+                        Text(selectedFilter == .active ? "No active entries" : "No archived entries")
                             .foregroundColor(.gray)
-                        Text("Tap the blue button to save your daily entries")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
+                        if selectedFilter == .active {
+                            Text("Tap the blue button to save your daily entries")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                        }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List {
                         ForEach(filteredHistory.sorted(by: { $0.date > $1.date })) { entry in
                             VStack(alignment: .leading, spacing: 8) {
-                                HStack {
-                                    Text(entry.date, style: .date)
-                                        .font(.headline)
-                                        .foregroundColor(.blue)
-                                    
-                                    if entry.isArchived {
-                                        Text("(Archived)")
-                                            .font(.caption)
-                                            .foregroundColor(.gray)
-                                    }
-                                    
-                                    Spacer()
-                                }
+                                Text(entry.date, style: .date)
+                                    .font(.headline)
+                                    .foregroundColor(.blue)
                                 
                                 if !entry.podcasts.isEmpty {
                                     ForEach(entry.podcasts, id: \.self) { podcast in
@@ -444,6 +431,16 @@ struct ContentView: View {
            let decoded = try? JSONDecoder().decode([DailyEntry].self, from: data) {
             history = decoded
         }
+        
+        // Restore today's entry if it exists
+        let today = Calendar.current.startOfDay(for: Date())
+        if let todayEntry = history.first(where: {
+            Calendar.current.isDate($0.date, inSameDayAs: today)
+        }) {
+            podcasts = todayEntry.podcasts
+            learnings = todayEntry.learnings
+            // Books are already loaded from savedBooks above
+        }
     }
     
     func saveBooks() {
@@ -454,6 +451,10 @@ struct ContentView: View {
     
     func saveBookText() {
         // This function is no longer needed but keeping for compatibility
+    }
+    
+    func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }
 
