@@ -71,6 +71,9 @@ struct ContentView: View {
                 HStack {
                     TextField("What podcast did you listen to?", text: $podcastInput)
                         .textFieldStyle(.roundedBorder)
+                        .onSubmit {
+                            addPodcast()
+                        }
                     
                     Button(action: addPodcast) {
                         Image(systemName: "plus.circle.fill")
@@ -102,6 +105,9 @@ struct ContentView: View {
                 HStack {
                     TextField("What are you reading?", text: $bookInput)
                         .textFieldStyle(.roundedBorder)
+                        .onSubmit {
+                            addBook()
+                        }
                     
                     Button(action: addBook) {
                         Image(systemName: "plus.circle.fill")
@@ -133,6 +139,9 @@ struct ContentView: View {
                 HStack {
                     TextField("What did you learn today?", text: $learningInput)
                         .textFieldStyle(.roundedBorder)
+                        .onSubmit {
+                            addLearning()
+                        }
                     
                     Button(action: addLearning) {
                         Image(systemName: "plus.circle.fill")
