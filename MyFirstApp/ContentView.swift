@@ -4,28 +4,36 @@ import SwiftUI
 struct DailyEntry: Identifiable, Codable, Equatable {
     let id: UUID
     let date: Date
-    var podcast: String
-    var book: String
+    var podcasts: [String]
+    var books: [String]
     var learnings: [String]
     var isArchived: Bool
     
-    init(id: UUID = UUID(), date: Date, podcast: String, book: String, learnings: [String], isArchived: Bool = false) {
+    init(id: UUID = UUID(), date: Date, podcasts: [String], books: [String], learnings: [String], isArchived: Bool = false) {
         self.id = id
         self.date = date
-        self.podcast = podcast
-        self.book = book
+        self.podcasts = podcasts
+        self.books = books
         self.learnings = learnings
         self.isArchived = isArchived
     }
     
     var formattedText: String {
-        var formatted = """
-        🎧 \(podcast)
-        📚 \(book)
-        """
+        var formatted = ""
+        
+        for podcast in podcasts {
+            if !formatted.isEmpty { formatted += "\n" }
+            formatted += "🎧 \(podcast)"
+        }
+        
+        for book in books {
+            if !formatted.isEmpty { formatted += "\n" }
+            formatted += "📚 \(book)"
+        }
         
         for learning in learnings {
-            formatted += "\n✨ \(learning)"
+            if !formatted.isEmpty { formatted += "\n" }
+            formatted += "✨ \(learning)"
         }
         
         return formatted
@@ -33,8 +41,10 @@ struct DailyEntry: Identifiable, Codable, Equatable {
 }
 
 struct ContentView: View {
-    @State private var audioText = ""
-    @State private var bookText = ""
+    @State private var podcastInput = ""
+    @State private var podcasts: [String] = []
+    @State private var bookInput = ""
+    @State private var books: [String] = []
     @State private var learningInput = ""
     @State private var learnings: [String] = []
     @State private var showCopiedAlert = false
@@ -58,11 +68,25 @@ struct ContentView: View {
                     .font(.largeTitle)
                     .padding()
                 
-                TextField("What podcast did you listen to?", text: $audioText)
-                    .textFieldStyle(.roundedBorder)
-                    .padding()
+                HStack {
+                    TextField("What podcast did you listen to?", text: $podcastInput)
+                        .textFieldStyle(.roundedBorder)
+                    
+                    Button(action: addPodcast) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.blue)
+                    }
+                }
+                .padding(.horizontal)
                 
-                Spacer()
+                List {
+                    ForEach(podcasts, id: \.self) { podcast in
+                        Text(podcast)
+                    }
+                    .onDelete(perform: deletePodcast)
+                }
+                .listStyle(.plain)
             }
             .tabItem {
                 Image(systemName: "headphones")
@@ -75,11 +99,25 @@ struct ContentView: View {
                     .font(.largeTitle)
                     .padding()
                 
-                TextField("What are you reading?", text: $bookText)
-                    .textFieldStyle(.roundedBorder)
-                    .padding()
+                HStack {
+                    TextField("What are you reading?", text: $bookInput)
+                        .textFieldStyle(.roundedBorder)
+                    
+                    Button(action: addBook) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.blue)
+                    }
+                }
+                .padding(.horizontal)
                 
-                Spacer()
+                List {
+                    ForEach(books, id: \.self) { book in
+                        Text(book)
+                    }
+                    .onDelete(perform: deleteBook)
+                }
+                .listStyle(.plain)
             }
             .tabItem {
                 Image(systemName: "book")
@@ -163,19 +201,39 @@ struct ContentView: View {
                                     Spacer()
                                 }
                                 
-                                HStack(alignment: .top, spacing: 8) {
-                                    Text("🎧")
-                                    Text(entry.podcast.isEmpty ? "No podcast" : entry.podcast)
-                                        .foregroundColor(entry.podcast.isEmpty ? .gray : .primary)
+                                if !entry.podcasts.isEmpty {
+                                    ForEach(entry.podcasts, id: \.self) { podcast in
+                                        HStack(alignment: .top, spacing: 8) {
+                                            Text("🎧")
+                                            Text(podcast)
+                                        }
+                                        .font(.subheadline)
+                                    }
+                                } else {
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Text("🎧")
+                                        Text("No podcasts")
+                                            .foregroundColor(.gray)
+                                    }
+                                    .font(.subheadline)
                                 }
-                                .font(.subheadline)
                                 
-                                HStack(alignment: .top, spacing: 8) {
-                                    Text("📚")
-                                    Text(entry.book.isEmpty ? "No book" : entry.book)
-                                        .foregroundColor(entry.book.isEmpty ? .gray : .primary)
+                                if !entry.books.isEmpty {
+                                    ForEach(entry.books, id: \.self) { book in
+                                        HStack(alignment: .top, spacing: 8) {
+                                            Text("📚")
+                                            Text(book)
+                                        }
+                                        .font(.subheadline)
+                                    }
+                                } else {
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Text("📚")
+                                        Text("No books")
+                                            .foregroundColor(.gray)
+                                    }
+                                    .font(.subheadline)
                                 }
-                                .font(.subheadline)
                                 
                                 if !entry.learnings.isEmpty {
                                     ForEach(entry.learnings, id: \.self) { learning in
@@ -238,9 +296,32 @@ struct ContentView: View {
             loadData()
             checkForNewDay()
         }
-        .onChange(of: bookText) { oldValue, newValue in
-            saveBookText()
-        }
+    }
+    
+    func addPodcast() {
+        let trimmed = podcastInput.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        
+        podcasts.append(trimmed)
+        podcastInput = ""
+    }
+    
+    func deletePodcast(at offsets: IndexSet) {
+        podcasts.remove(atOffsets: offsets)
+    }
+    
+    func addBook() {
+        let trimmed = bookInput.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        
+        books.append(trimmed)
+        bookInput = ""
+        saveBooks()
+    }
+    
+    func deleteBook(at offsets: IndexSet) {
+        books.remove(atOffsets: offsets)
+        saveBooks()
     }
     
     func addLearning() {
@@ -263,15 +344,15 @@ struct ContentView: View {
             Calendar.current.isDate($0.date, inSameDayAs: today)
         }) {
             // Update existing entry
-            history[existingIndex].podcast = audioText
-            history[existingIndex].book = bookText
+            history[existingIndex].podcasts = podcasts
+            history[existingIndex].books = books
             history[existingIndex].learnings = learnings
         } else {
             // Create new entry
             let newEntry = DailyEntry(
                 date: today,
-                podcast: audioText,
-                book: bookText,
+                podcasts: podcasts,
+                books: books,
                 learnings: learnings
             )
             history.append(newEntry)
@@ -280,13 +361,21 @@ struct ContentView: View {
         saveHistory()
         
         // Copy to clipboard
-        var formatted = """
-        🎧 \(audioText)
-        📚 \(bookText)
-        """
+        var formatted = ""
+        
+        for podcast in podcasts {
+            if !formatted.isEmpty { formatted += "\n" }
+            formatted += "🎧 \(podcast)"
+        }
+        
+        for book in books {
+            if !formatted.isEmpty { formatted += "\n" }
+            formatted += "📚 \(book)"
+        }
         
         for learning in learnings {
-            formatted += "\n✨ \(learning)"
+            if !formatted.isEmpty { formatted += "\n" }
+            formatted += "✨ \(learning)"
         }
         
         UIPasteboard.general.string = formatted
@@ -322,9 +411,9 @@ struct ContentView: View {
     }
     
     func startNewDay() {
-        audioText = ""
+        podcasts = []
         learnings = []
-        // Keep bookText as-is
+        // Keep books as-is
         UserDefaults.standard.set(Date(), forKey: "lastSaveDate")
     }
     
@@ -335,9 +424,10 @@ struct ContentView: View {
     }
     
     func loadData() {
-        // Load book
-        if let saved = UserDefaults.standard.string(forKey: "savedBook") {
-            bookText = saved
+        // Load books
+        if let data = UserDefaults.standard.data(forKey: "savedBooks"),
+           let decoded = try? JSONDecoder().decode([String].self, from: data) {
+            books = decoded
         }
         
         // Load history
@@ -347,8 +437,14 @@ struct ContentView: View {
         }
     }
     
+    func saveBooks() {
+        if let encoded = try? JSONEncoder().encode(books) {
+            UserDefaults.standard.set(encoded, forKey: "savedBooks")
+        }
+    }
+    
     func saveBookText() {
-        UserDefaults.standard.set(bookText, forKey: "savedBook")
+        // This function is no longer needed but keeping for compatibility
     }
 }
 
